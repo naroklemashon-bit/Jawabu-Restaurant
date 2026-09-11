@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jawabu Restaurant - Admin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-4 sm:p-6 min-h-screen">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header & Section Controls -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <div>
+                <h1 class="text-xl font-bold text-sky-400">Jawabu Restaurant — Management Admin Portal</h1>
+                <p class="text-sm text-slate-400">Review business performance metrics, revenue statistics, and full system audit logs.</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="switchTab('metrics')" id="tabMetricsBtn" class="bg-sky-600 text-white px-4 py-2 rounded text-sm font-semibold transition cursor-pointer">Metrics & Orders</button>
+                <button onclick="switchTab('audit')" id="tabAuditBtn" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded text-sm font-semibold transition cursor-pointer">Audit Trail</button>
+            </div>
+        </div>
+
+        <!-- Metrics & Active Overview Section -->
+        <div id="metricsSection" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                    <p class="text-xs text-slate-400 uppercase font-semibold">Total Revenue (Confirmed Paid)</p>
+                    <p id="totalRevenue" class="text-2xl font-bold text-emerald-400 mt-1">KES 0</p>
+                </div>
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                    <p class="text-xs text-slate-400 uppercase font-semibold">Pending Kitchen Review</p>
+                    <p id="pendingCount" class="text-2xl font-bold text-amber-400 mt-1">0</p>
+                </div>
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                    <p class="text-xs text-slate-400 uppercase font-semibold">Total Orders Processed</p>
+                    <p id="totalOrdersCount" class="text-2xl font-bold text-sky-400 mt-1">0</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
+                <h2 class="text-lg font-bold mb-4 text-amber-400">All Restaurant Orders Overview</h2>
+                <div id="adminOrdersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <p class="text-slate-500 italic text-sm">Syncing analytics from database...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Logs Section -->
+        <div id="auditLogsSection" class="hidden bg-slate-800 p-5 rounded-xl border border-slate-700">
+            <h2 class="text-lg font-bold mb-1 text-sky-400">Complete System Audit Trail</h2>
+            <p class="text-xs text-slate-400 mb-4">Detailed records of actions taken by waitstaff and payment confirmations.</p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-900 text-slate-400 uppercase text-xs">
+                        <tr>
+                            <th class="p-3">Time</th>
+                            <th class="p-3">Actor</th>
+                            <th class="p-3">Action Type</th>
+                            <th class="p-3">Amount</th>
+                            <th class="p-3">Payment Method</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditLogsTableBody" class="divide-y divide-slate-700 text-slate-300">
+                        <tr><td colspan="5" class="p-3 text-center text-slate-500 italic">Loading audit trail...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAb0xABJwiEuEW38-KfhwIn44WgMBn04Cg",
+            authDomain: "jawabu-restaurant.firebaseapp.com",
+            projectId: "jawabu-restaurant",
+            storageBucket: "jawabu-restaurant.firebasestorage.app",
+            messagingSenderId: "1010597605498",
+            appId: "1:1010597605498:web:4aefc85182252194028bc3",
+            measurementId: "G-JE72H7WSPT"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        window.addEventListener('DOMContentLoaded', () => {
+            listenToAllOrders();
+            listenToAuditLogs();
+        });
+
+        function switchTab(tab) {
+            const metricsSec = document.getElementById('metricsSection');
+            const auditSec = document.getElementById('auditLogsSection');
+            const metricsBtn = document.getElementById('tabMetricsBtn');
+            const auditBtn = document.getElementById('tabAuditBtn');
+
+            if(tab === 'metrics') {
+                metricsSec.classList.remove('hidden');
+                auditSec.classList.add('hidden');
+                metricsBtn.className = "bg-sky-600 text-white px-4 py-2 rounded text-sm font-semibold transition cursor-pointer";
+                auditBtn.className = "bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded text-sm font-semibold transition cursor-pointer";
+            } else {
+                metricsSec.classList.add('hidden');
+                auditSec.classList.remove('hidden');
+                auditBtn.className = "bg-sky-600 text-white px-4 py-2 rounded text-sm font-semibold transition cursor-pointer";
+                metricsBtn.className = "bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded text-sm font-semibold transition cursor-pointer";
+            }
+        }
+
+        function listenToAllOrders() {
+            db.collection("orders").onSnapshot((snapshot) => {
+                const container = document.getElementById('adminOrdersContainer');
+                container.innerHTML = '';
+                if(snapshot.empty) {
+                    container.innerHTML = `<p class="text-slate-500 italic text-sm">No orders recorded yet.</p>`;
+                    document.getElementById('totalRevenue').innerText = "KES 0";
+                    document.getElementById('pendingCount').innerText = "0";
+                    document.getElementById('totalOrdersCount').innerText = "0";
+                    return;
+                }
+
+                let docs = [];
+                snapshot.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+                docs.sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+
+                let totalRevenue = 0;
+                let pendingCount = 0;
+
+                docs.forEach(order => {
+                    if(order.payment_status === 'Confirmed Paid') totalRevenue += (order.total_amount || 0);
+                    if(order.status === 'pending') pendingCount += 1;
+
+                    const card = document.createElement('div');
+                    card.className = "bg-slate-900 border border-slate-700 p-4 rounded-lg flex flex-col justify-between";
+                    let statusBadge = order.status === 'accepted' ? `<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400 font-bold">Accepted</span>` : order.status === 'declined' ? `<span class="px-2 py-0.5 rounded text-xs bg-rose-500/20 text-rose-400 font-bold">Declined</span>` : `<span class="px-2 py-0.5 rounded text-xs bg-amber-500/20 text-amber-400 font-bold">Pending</span>`;
+
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-amber-400 font-bold">Waiter: ${order.waiter_name || 'Unknown'}</span>
+                                <span class="text-slate-400 text-xs">${order.timestamp?.toDate ? order.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">${statusBadge}<span class="text-emerald-400 font-bold text-sm">KES ${order.total_amount}</span></div>
+                            <p class="text-xs text-slate-400 mb-2">Payment: ${order.payment_method || 'Cash'} (${order.payment_status})</p>
+                            <ul class="list-disc list-inside mb-3 text-slate-300 text-xs space-y-1">${(order.items || []).map(i => `<li>${i}</li>`).join('')}</ul>
+                        </div>
+                        <div class="pt-2 border-t border-slate-800 text-center">
+                            <span class="text-xs font-semibold text-slate-400">Status: <strong class="text-white uppercase">${order.status}</strong></span>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                document.getElementById('totalRevenue').innerText = `KES ${totalRevenue}`;
+                document.getElementById('pendingCount').innerText = pendingCount;
+                document.getElementById('totalOrdersCount').innerText = docs.length;
+            });
+        }
+
+        function listenToAuditLogs() {
+            db.collection("audit_logs").onSnapshot((snapshot) => {
+                const tbody = document.getElementById('auditLogsTableBody');
+                tbody.innerHTML = '';
+                if(snapshot.empty) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-3 text-center text-slate-500 italic">No audit logs recorded yet.</td></tr>`;
+                    return;
+                }
+                let logs = [];
+                snapshot.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
+                logs.sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+
+                logs.forEach(log => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-900/50";
+                    tr.innerHTML = `
+                        <td class="p-3 text-xs text-slate-400">${log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}) : 'Just now'}</td>
+                        <td class="p-3 font-semibold text-slate-200">${log.actor || 'System'}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${log.action === 'SENT' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}">${log.action}</span></td>
+                        <td class="p-3 text-emerald-400 font-semibold">KES ${log.total_amount || 0}</td>
+                        <td class="p-3 text-slate-300 text-xs">${log.payment_method || 'N/A'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
