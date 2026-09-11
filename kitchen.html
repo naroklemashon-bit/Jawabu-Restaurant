@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jawabu Restaurant - Kitchen Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-4 sm:p-6 min-h-screen">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-amber-400">Jawabu Restaurant — Kitchen Display Screen</h1>
+                <p class="text-sm text-slate-400">Manage order fulfillment queues and update food readiness states.</p>
+            </div>
+            <span class="bg-amber-500/20 text-amber-400 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">Live Feed</span>
+        </div>
+
+        <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
+            <h2 class="text-lg font-bold mb-4 text-emerald-400">Incoming Kitchen Queue</h2>
+            <div id="kitchenOrdersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <p class="text-slate-500 italic text-sm">Syncing live kitchen orders...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAb0xABJwiEuEW38-KfhwIn44WgMBn04Cg",
+            authDomain: "jawabu-restaurant.firebaseapp.com",
+            projectId: "jawabu-restaurant",
+            storageBucket: "jawabu-restaurant.firebasestorage.app",
+            messagingSenderId: "1010597605498",
+            appId: "1:1010597605498:web:4aefc85182252194028bc3",
+            measurementId: "G-JE72H7WSPT"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        window.addEventListener('DOMContentLoaded', () => {
+            db.collection("orders").onSnapshot((snapshot) => {
+                const container = document.getElementById('kitchenOrdersContainer');
+                container.innerHTML = '';
+                if(snapshot.empty) {
+                    container.innerHTML = `<p class="text-slate-500 italic text-sm">No orders in queue.</p>`;
+                    return;
+                }
+                let docs = [];
+                snapshot.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+                docs.sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+
+                docs.forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = "bg-slate-900 border border-slate-700 p-4 rounded-lg flex flex-col justify-between";
+                    let statusBadge = order.status === 'accepted' ? `<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400 font-bold">Accepted</span>` : order.status === 'declined' ? `<span class="px-2 py-0.5 rounded text-xs bg-rose-500/20 text-rose-400 font-bold">Declined</span>` : `<span class="px-2 py-0.5 rounded text-xs bg-amber-500/20 text-amber-400 font-bold">Pending Review</span>`;
+
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs text-amber-400 font-bold">Waiter: ${order.waiter_name || 'Unknown'}</span>
+                                <span class="text-slate-400 text-xs">${order.timestamp?.toDate ? order.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-3">${statusBadge}<span class="text-emerald-400 font-bold text-sm">KES ${order.total_amount}</span></div>
+                            <ul class="list-disc list-inside mb-4 text-slate-200 text-sm space-y-1 font-medium">${(order.items || []).map(item => `<li>${item}</li>`).join('')}</ul>
+                        </div>
+                        <div class="pt-2 border-t border-slate-800">
+                            ${order.status === 'pending' ? `
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="updateStatus('${order.id}', 'accepted')" class="bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-xs font-bold cursor-pointer transition">Accept Order</button>
+                                    <button onclick="updateStatus('${order.id}', 'declined')" class="bg-rose-600 hover:bg-rose-500 py-2 rounded text-xs font-bold cursor-pointer transition">Decline</button>
+                                </div>
+                            ` : `
+                                <p class="text-center text-xs font-semibold py-1 ${order.status === 'accepted' ? 'text-emerald-400' : 'text-rose-400'}">
+                                    ${order.status === 'accepted' ? 'Order Accepted ✓' : 'Order Declined ✗'}
+                                </p>
+                            `}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            });
+        });
+
+        async function updateStatus(orderId, newStatus) {
+            await db.collection("orders").doc(orderId).update({ status: newStatus });
+        }
+    </script>
+</body>
+</html>
